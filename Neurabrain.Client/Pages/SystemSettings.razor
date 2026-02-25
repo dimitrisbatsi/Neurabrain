@@ -1,0 +1,99 @@
+﻿@page "/system-settings"
+@* Ξεσχολιάζουμε την παρακάτω γραμμή όταν προσθέσουμε το σύστημα Login *@
+@* @attribute [Authorize(Roles = "SuperAdmin")] *@
+@inject HttpClient Http
+
+<PageTitle>Ρυθμίσεις Συστήματος - Neurabrain</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>⚙️ Ρυθμίσεις Συστήματος</h2>
+        <span class="badge bg-danger">SuperAdmin Only</span>
+    </div>
+    <hr />
+
+    @if (isLoading)
+    {
+        <div class="d-flex align-items-center">
+            <div class="spinner-border text-primary me-2" role="status"></div>
+            <span>Φόρτωση ρυθμίσεων...</span>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Τεχνητή Νοημοσύνη (Google Gemini)</h5>
+            </div>
+            <div class="card-body bg-light">
+                <div class="mb-3">
+                    <label for="geminiKey" class="form-label fw-bold">API Key</label>
+                    <div class="input-group">
+                        <span class="input-group-text">🔑</span>
+                        <input type="password" id="geminiKey" class="form-control" @bind="settings.GeminiApiKey" placeholder="Εισάγετε το μυστικό κλειδί (AI_API_KEY)..." />
+                    </div>
+                    <div class="form-text text-muted mt-2">
+                        <strong>Προσοχή:</strong> Το κλειδί αυτό δίνει πλήρη πρόσβαση στις υπηρεσίες παραγωγής ασκήσεων. Μην το μοιράζεστε με απλούς Admins.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary px-4 py-2" @onclick="SaveSettings" disabled="@isSaving">
+            @if (isSaving)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <span>Αποθήκευση...</span>
+            }
+            else
+            {
+                <span>Αποθήκευση Αλλαγών</span>
+            }
+        </button>
+
+        @if (saveSuccess)
+        {
+            <div class="alert alert-success mt-3 d-flex align-items-center" role="alert">
+                <span class="me-2">✅</span> Οι ρυθμίσεις αποθηκεύτηκαν επιτυχώς!
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool saveSuccess = false;
+
+    // Ένα προσωρινό τοπικό μοντέλο. Αργότερα αυτό θα γίνει DTO στο Shared project.
+    private SystemSettingsDto settings = new SystemSettingsDto();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Εδώ στο μέλλον θα κάνουμε HTTP GET στο API για να φέρουμε το ήδη αποθηκευμένο κλειδί
+        // settings = await Http.GetFromJsonAsync<SystemSettingsDto>("api/settings");
+
+        await Task.Delay(500); // Προσομοίωση φόρτωσης
+        isLoading = false;
+    }
+
+    private async Task SaveSettings()
+    {
+        isSaving = true;
+        saveSuccess = false;
+
+        // Εδώ θα κάνουμε HTTP POST/PUT στο API για να αποθηκεύσουμε το νέο κλειδί στη Βάση Δεδομένων
+        // var response = await Http.PostAsJsonAsync("api/settings", settings);
+
+        await Task.Delay(800); // Προσομοίωση αποθήκευσης στο δίκτυο
+
+        isSaving = false;
+        saveSuccess = true;
+    }
+
+    // DTO Class (Μελλοντικά θα μεταφερθεί στο Neurabrain.Shared/DTOs)
+    public class SystemSettingsDto
+    {
+        public string GeminiApiKey { get; set; } = string.Empty;
+    }
+}
