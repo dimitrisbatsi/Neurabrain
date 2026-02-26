@@ -1,0 +1,60 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Neurabrain App</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door" aria-hidden="true"></span> Αρχική
+            </NavLink>
+        </div>
+
+        <AuthorizeView Roles="Organization, SuperAdmin">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="my-school">
+                    <span class="bi bi-building-gear" aria-hidden="true"></span> Το Φροντιστήριό μου
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="staff">
+                    <span class="bi bi-person-badge" aria-hidden="true"></span> Καθηγητές
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="students">
+                    <span class="bi bi-mortarboard" aria-hidden="true"></span> Μαθητές
+                </NavLink>
+            </div>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Teacher, SuperAdmin">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="workspace">
+                    <span class="bi bi-journal-text" aria-hidden="true"></span> Υλικό & Ασκήσεις
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="my-classes">
+                    <span class="bi bi-people" aria-hidden="true"></span> Οι Τάξεις μου
+                </NavLink>
+            </div>
+        </AuthorizeView>
+    </nav>
+    <footer class="mt-auto px-3 py-2 text-muted">
+        <small>v0.4b.0-alpha</small> <br />
+        <small>&copy; 2026 Neurabrain. All rights reserved.</small>
+    </footer>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+}

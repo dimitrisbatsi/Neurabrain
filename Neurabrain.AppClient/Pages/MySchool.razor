@@ -1,0 +1,163 @@
+﻿@page "/my-school"
+@attribute [Authorize(Roles = "Organization, SuperAdmin")]
+@inject HttpClient Http
+
+<PageTitle>Το Φροντιστήριό μου - Neurabrain</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-building-gear me-2"></i> Το Φροντιστήριό μου</h2>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Φόρτωση δεδομένων...</p>
+        </div>
+    }
+    else if (myOrg == null)
+    {
+        <div class="alert alert-warning">
+            Δεν βρέθηκαν στοιχεία φροντιστηρίου για τον λογαριασμό σας. Επικοινωνήστε με τη διαχείριση.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                @successMessage
+                                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                @errorMessage
+                                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                            </div>
+                        }
+
+                        <EditForm Model="myOrg" OnValidSubmit="SaveChanges">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger" />
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Επωνυμία Φροντιστηρίου</label>
+                                <InputText class="form-control" @bind-Value="myOrg.Name" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">ΑΦΜ</label>
+                                <InputText class="form-control" @bind-Value="myOrg.TaxId" />
+                            </div>
+
+                            <hr class="my-4" />
+                            <h5 class="text-muted mb-3">Πληροφορίες Συνδρομής</h5>
+
+                            <div class="mb-3">
+                                <label class="form-label">Μέγιστος Αριθμός Μαθητών</label>
+                                <InputNumber class="form-control" @bind-Value="myOrg.MaxStudents" disabled />
+                                <div class="form-text text-muted">
+                                    Για να αυξήσετε το όριο των μαθητών σας, παρακαλώ αναβαθμίστε το πλάνο σας.
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label">Ημερομηνία Εγγραφής</label>
+                                <input type="text" class="form-control" value="@myOrg.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")" disabled />
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                    @if (isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                        <span>Αποθήκευση...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-save me-2"></i> <span>Αποθήκευση Αλλαγών</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private OrganizationDto? myOrg;
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMyOrganization();
+    }
+
+    private async Task LoadMyOrganization()
+    {
+        try
+        {
+            // Κάνουμε κλήση στο API. Επειδή το API φιλτράρει βάσει Cookie, 
+            // θα μας φέρει ΜΟΝΟ μια λίστα με το δικό μας φροντιστήριο!
+            var orgs = await Http.GetFromJsonAsync<List<OrganizationDto>>("api/organizations");
+            
+            // Παίρνουμε το πρώτο (και μοναδικό) αποτέλεσμα της λίστας
+            myOrg = orgs?.FirstOrDefault();
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αποτυχία φόρτωσης δεδομένων.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        if (myOrg == null) return;
+
+        isSaving = true;
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/organizations/{myOrg.Id}", myOrg);
+
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = "Τα στοιχεία του φροντιστηρίου ενημερώθηκαν με επιτυχία!";
+            }
+            else
+            {
+                errorMessage = "Προέκυψε σφάλμα κατά την αποθήκευση.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αδυναμία επικοινωνίας με τον διακομιστή.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

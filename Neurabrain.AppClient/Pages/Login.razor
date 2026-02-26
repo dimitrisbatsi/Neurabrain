@@ -1,0 +1,100 @@
+﻿@page "/login"
+@using Neurabrain.Shared.DTOs
+@using Neurabrain.AppClient.Security
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Σύνδεση - Neurabrain</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <h2 class="fw-bold text-primary">Neurabrain</h2>
+                        <p class="text-muted">Συνδεθείτε στον λογαριασμό σας</p>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger p-2 text-center">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <InputText class="form-control" @bind-Value="loginModel.Email" />
+                            <ValidationMessage For="@(() => loginModel.Email)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Κωδικός</label>
+                            <InputText type="password" class="form-control" @bind-Value="loginModel.Password" />
+                            <ValidationMessage For="@(() => loginModel.Password)" class="text-danger" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mb-3" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                            }
+                            Σύνδεση
+                        </button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginDto loginModel = new();
+    private bool isLoading = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Αν είναι ήδη συνδεδεμένος (π.χ. από SSO), τον στέλνουμε κατευθείαν στην αρχική!
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/login", loginModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Ειδοποιούμε το Blazor ότι αλλάξαμε κατάσταση και πάμε αρχική
+                ((CustomAuthStateProvider)AuthStateProvider).NotifyAuthState();
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                errorMessage = "Λάθος email ή κωδικός.";
+            }
+        }
+        catch
+        {
+            errorMessage = "Αδυναμία επικοινωνίας με τον διακομιστή.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

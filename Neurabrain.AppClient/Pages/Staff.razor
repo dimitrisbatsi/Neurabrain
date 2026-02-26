@@ -1,0 +1,292 @@
+﻿@page "/staff"
+@attribute [Authorize(Roles = "Organization, SuperAdmin")]
+@inject HttpClient Http
+
+<PageTitle>Προσωπικό (Καθηγητές) - Neurabrain</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-person-badge me-2"></i> Διαχείριση Καθηγητών</h2>
+        
+        @if (!showForm)
+        {
+            <button class="btn btn-primary" @onclick="CreateNew">
+                <i class="bi bi-person-plus me-1"></i> Νέος Καθηγητής
+            </button>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Φόρτωση δεδομένων...</p>
+        </div>
+    }
+    else if (showForm)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">@(currentTeacher.Id == Guid.Empty ? "Προσθήκη Νέου Καθηγητή" : "Επεξεργασία Καθηγητή")</h5>
+            </div>
+            <div class="card-body">
+                <EditForm Model="currentTeacher" OnValidSubmit="SaveTeacher">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Ονοματεπώνυμο</label>
+                            <InputText class="form-control" @bind-Value="currentTeacher.FullName" placeholder="π.χ. Γιώργος Παπαδόπουλος" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Email</label>
+                            <InputText type="email" class="form-control" @bind-Value="currentTeacher.Email" placeholder="giorgos@example.com" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Κωδικός Πρόσβασης</label>
+                            <InputText type="password" class="form-control" @bind-Value="currentTeacher.Password" placeholder="@(currentTeacher.Id == Guid.Empty ? "Υποχρεωτικό πεδίο" : "Αφήστε κενό για να μη διαγραφεί ο παλιός")" />
+                            @if (currentTeacher.Id == Guid.Empty)
+                            {
+                                <small class="text-muted">Δώστε αυτόν τον αρχικό κωδικό στον καθηγητή για να συνδεθεί.</small>
+                            }
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Ρόλος</label>
+                            <input type="text" class="form-control" value="Καθηγητής (Teacher)" disabled />
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="button" class="btn btn-secondary me-2" @onclick="CancelEdit">Ακύρωση</button>
+                        <button type="submit" class="btn btn-success" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                <span>Αποθήκευση...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-lg me-1"></i> <span>Αποθήκευση</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Ονοματεπώνυμο</th>
+                                <th>Email</th>
+                                <th>Ημερ. Εγγραφής</th>
+                                <th class="text-end">Ενέργειες</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (teachers == null || !teachers.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">Δεν έχετε προσθέσει καθηγητές ακόμα.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var teacher in teachers)
+                                {
+                                    <tr>
+                                        <td class="align-middle fw-medium">@teacher.FullName</td>
+                                        <td class="align-middle">@teacher.Email</td>
+                                        <td class="align-middle">@teacher.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                        <td class="align-middle text-end">
+                                            <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditTeacher(teacher)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteTeacher(teacher.Id)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<UserDto> teachers = new();
+    private UserDto currentTeacher = new();
+    private Guid myOrganizationId;
+    
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool showForm = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            // 1. Βρίσκουμε το ID του Φροντιστηρίου μας
+            var orgs = await Http.GetFromJsonAsync<List<OrganizationDto>>("api/organizations");
+            var myOrg = orgs?.FirstOrDefault();
+            
+            if (myOrg != null)
+            {
+                myOrganizationId = myOrg.Id;
+            }
+
+            // 2. Φέρνουμε τους χρήστες (το backend μας φέρνει ήδη ΜΟΝΟ αυτούς του δικού μας φροντιστηρίου)
+            var allUsers = await Http.GetFromJsonAsync<List<UserDto>>("api/users");
+            
+            // 3. Φιλτράρουμε στο UI για να δείξουμε ΜΟΝΟ τους καθηγητές
+            if (allUsers != null)
+            {
+                teachers = allUsers.Where(u => u.Role == "Teacher").ToList();
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αποτυχία φόρτωσης δεδομένων.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CreateNew()
+    {
+        errorMessage = null;
+        currentTeacher = new UserDto 
+        { 
+            Role = "Teacher",
+            // Το backend απαιτεί να συνδέσουμε τον χρήστη με το φροντιστήριό μας
+            OrganizationIds = new List<Guid> { myOrganizationId }
+        };
+        showForm = true;
+    }
+
+    private void EditTeacher(UserDto teacher)
+    {
+        errorMessage = null;
+        // Κάνουμε ένα "αντίγραφο" για να μην αλλάζει η λίστα όσο πληκτρολογούμε
+        currentTeacher = new UserDto
+        {
+            Id = teacher.Id,
+            FullName = teacher.FullName,
+            Email = teacher.Email,
+            Role = teacher.Role,
+            OrganizationIds = teacher.OrganizationIds
+        };
+        showForm = true;
+    }
+
+    private void CancelEdit()
+    {
+        showForm = false;
+        errorMessage = null;
+    }
+
+    private async Task SaveTeacher()
+    {
+        if (string.IsNullOrWhiteSpace(currentTeacher.FullName) || string.IsNullOrWhiteSpace(currentTeacher.Email))
+        {
+            errorMessage = "Το όνομα και το Email είναι υποχρεωτικά.";
+            return;
+        }
+
+        isSaving = true;
+        errorMessage = null;
+
+        try
+        {
+            HttpResponseMessage response;
+
+            if (currentTeacher.Id == Guid.Empty)
+            {
+                // Δημιουργία
+                if (string.IsNullOrWhiteSpace(currentTeacher.Password))
+                {
+                    errorMessage = "Ο αρχικός κωδικός είναι υποχρεωτικός για νέους καθηγητές.";
+                    isSaving = false;
+                    return;
+                }
+                response = await Http.PostAsJsonAsync("api/users", currentTeacher);
+            }
+            else
+            {
+                // Ενημέρωση
+                response = await Http.PutAsJsonAsync($"api/users/{currentTeacher.Id}", currentTeacher);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                showForm = false;
+                await LoadData(); // Ξαναφορτώνουμε τη λίστα
+            }
+            else
+            {
+                errorMessage = "Προέκυψε σφάλμα κατά την αποθήκευση.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αδυναμία επικοινωνίας με τον διακομιστή.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteTeacher(Guid id)
+    {
+        // Σε παραγωγικό περιβάλλον, καλό είναι να βάλουμε ένα confirm dialog εδώ (π.χ. με JS Interop ή SweetAlert)
+        try
+        {
+            var response = await Http.DeleteAsync($"api/users/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = "Δεν ήταν δυνατή η διαγραφή του καθηγητή.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Σφάλμα επικοινωνίας με τον διακομιστή.";
+        }
+    }
+}
