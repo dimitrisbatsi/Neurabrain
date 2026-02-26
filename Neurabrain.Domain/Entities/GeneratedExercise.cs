@@ -11,11 +11,13 @@ namespace Neurabrain.Domain.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
 
-        // Foreign Key
         public Guid SourceMaterialId { get; set; }
         public SourceMaterial SourceMaterial { get; set; } = null!;
 
-        public ConditionType TargetCondition { get; set; }
+        // Foreign Key στη νέα μας βάση Μαθησιακών Δυσκολιών (αντί για Enum)
+        public Guid LearningConditionId { get; set; }
+        public LearningCondition LearningCondition { get; set; } = null!;
+
         public string AIContentJson { get; set; } = string.Empty;
         public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
     }

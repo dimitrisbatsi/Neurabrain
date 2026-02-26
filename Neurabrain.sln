@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36717.8 d17.14
+VisualStudioVersion = 17.14.36717.8
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neurabrain.Domain", "Neurabrain.Domain\Neurabrain.Domain.csproj", "{B3150DDD-ED4C-4C07-BA90-F84C118BB9DB}"
 EndProject
@@ -11,7 +11,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neurabrain.Shared", "Neurab
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neurabrain.API", "Neurabrain.API\Neurabrain.API.csproj", "{C7E35D9F-B012-4FA6-9D8D-DBAB52BF555F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neurabrain.Client", "Neurabrain.Client\Neurabrain.Client.csproj", "{E6D5012B-A4FD-4CC1-ACB1-2612A79ED9DF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neurabrain.AdminClient", "Neurabrain.AdminClient\Neurabrain.AdminClient.csproj", "{7AA01A74-8063-9B8A-1127-0B3BA0F38023}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neurabrain.AppClient", "Neurabrain.AppClient\Neurabrain.AppClient.csproj", "{E6287626-9750-4AE9-A7E8-499FB07AA9B6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,10 +37,14 @@ Global
 		{C7E35D9F-B012-4FA6-9D8D-DBAB52BF555F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C7E35D9F-B012-4FA6-9D8D-DBAB52BF555F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C7E35D9F-B012-4FA6-9D8D-DBAB52BF555F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E6D5012B-A4FD-4CC1-ACB1-2612A79ED9DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E6D5012B-A4FD-4CC1-ACB1-2612A79ED9DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E6D5012B-A4FD-4CC1-ACB1-2612A79ED9DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E6D5012B-A4FD-4CC1-ACB1-2612A79ED9DF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7AA01A74-8063-9B8A-1127-0B3BA0F38023}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7AA01A74-8063-9B8A-1127-0B3BA0F38023}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7AA01A74-8063-9B8A-1127-0B3BA0F38023}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7AA01A74-8063-9B8A-1127-0B3BA0F38023}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E6287626-9750-4AE9-A7E8-499FB07AA9B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E6287626-9750-4AE9-A7E8-499FB07AA9B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E6287626-9750-4AE9-A7E8-499FB07AA9B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E6287626-9750-4AE9-A7E8-499FB07AA9B6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

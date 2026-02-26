@@ -1,0 +1,215 @@
+﻿@page "/admin/users"
+@attribute [Authorize(Roles = "SuperAdmin, Admin")]
+@using Neurabrain.Shared.DTOs
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Διαχείριση Χρηστών</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Χρήστες Συστήματος</h2>
+        <button class="btn btn-primary" @onclick="CreateNew">
+            <i class="bi bi-person-plus"></i> + Νέος Χρήστης
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <p><em>Φόρτωση...</em></p>
+                    }
+                    else
+                    {
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Ονοματεπώνυμο</th>
+                                    <th>Email</th>
+                                    <th>Ρόλος</th>
+                                    <th>Φροντιστήρια</th>
+                                    <th>Ενέργειες</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var user in users)
+                                {
+                                    <tr>
+                                        <td><strong>@user.FullName</strong></td>
+                                        <td>@user.Email</td>
+                                        <td><span class="badge bg-secondary">@user.Role</span></td>
+                                        <td>@user.OrganizationIds.Count</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditUser(user)">Επεξεργασία</button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteUser(user.Id)">Διαγραφή</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            @if (showForm)
+            {
+                <div class="card shadow-sm border-primary">
+                    <div class="card-header bg-primary text-white">
+                        @(currentUser.Id == Guid.Empty ? "Νέος Χρήστης" : "Επεξεργασία")
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Ονοματεπώνυμο</label>
+                            <input type="text" class="form-control" @bind="currentUser.FullName" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" @bind="currentUser.Email" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Κωδικός Πρόσβασης</label>
+                            <input type="password" class="form-control" @bind="currentUser.Password" placeholder="@(currentUser.Id == Guid.Empty ? "" : "Αφήστε κενό για να μην αλλάξει")" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ρόλος</label>
+                            <select class="form-select" @bind="currentUser.Role">
+                                <option value="Teacher">Καθηγητής</option>
+                                <option value="Organization">Διαχειριστής Φροντιστηρίου</option>
+                                <option value="Admin">Admin</option>
+                                <option value="SuperAdmin">Super Admin</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Φροντιστήρια στα οποία εργάζεται:</label>
+                            <div class="border p-2 rounded" style="max-height: 150px; overflow-y: auto;">
+                                @foreach (var org in organizations)
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="org_@org.Id"
+                                               checked="@currentUser.OrganizationIds.Contains(org.Id)"
+                                               @onchange="@(e => ToggleOrganization(org.Id, e.Value))">
+                                        <label class="form-check-label" for="org_@org.Id">@org.Name</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-secondary me-2" @onclick="CancelEdit">Ακύρωση</button>
+                            <button class="btn btn-success" @onclick="SaveUser">Αποθήκευση</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<UserDto> users = new();
+    private List<OrganizationDto> organizations = new();
+    private UserDto currentUser = new();
+
+    private bool isLoading = true;
+    private bool showForm = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Φέρνουμε τους χρήστες ΚΑΙ τα διαθέσιμα φροντιστήρια ταυτόχρονα
+        await Task.WhenAll(LoadUsers(), LoadOrganizations());
+        isLoading = false;
+    }
+
+    private async Task LoadUsers()
+    {
+        users = await Http.GetFromJsonAsync<List<UserDto>>("api/users") ?? new();
+    }
+
+    private async Task LoadOrganizations()
+    {
+        organizations = await Http.GetFromJsonAsync<List<OrganizationDto>>("api/organizations") ?? new();
+    }
+
+    private void CreateNew()
+    {
+        currentUser = new UserDto { Role = "Teacher" };
+        showForm = true;
+    }
+
+    private void EditUser(UserDto user)
+    {
+        currentUser = new UserDto
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email,
+            Role = user.Role,
+            OrganizationIds = new List<Guid>(user.OrganizationIds)
+        };
+        showForm = true;
+    }
+
+    // Διαχειρίζεται το "τικάρισμα" των checkboxes για τα φροντιστήρια
+    private void ToggleOrganization(Guid orgId, object checkedValue)
+    {
+        if ((bool)checkedValue)
+        {
+            if (!currentUser.OrganizationIds.Contains(orgId)) currentUser.OrganizationIds.Add(orgId);
+        }
+        else
+        {
+            currentUser.OrganizationIds.Remove(orgId);
+        }
+    }
+
+    private void CancelEdit()
+    {
+        showForm = false;
+    }
+
+    private async Task SaveUser()
+    {
+        errorMessage = string.Empty;
+        HttpResponseMessage response;
+
+        if (currentUser.Id == Guid.Empty)
+        {
+            response = await Http.PostAsJsonAsync("api/users", currentUser);
+        }
+        else
+        {
+            response = await Http.PutAsJsonAsync($"api/users/{currentUser.Id}", currentUser);
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadUsers();
+            showForm = false;
+        }
+        else
+        {
+            errorMessage = "Σφάλμα κατά την αποθήκευση. Ελέγξτε τα δεδομένα.";
+        }
+    }
+
+    private async Task DeleteUser(Guid id)
+    {
+        var response = await Http.DeleteAsync($"api/users/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadUsers();
+        }
+    }
+}

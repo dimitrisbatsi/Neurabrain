@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Neurabrain.Domain.Interfaces;
 using Neurabrain.Infrastructure.Data;
+using Neurabrain.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,15 +19,42 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowBlazorClient",
         policy =>
         {
-            policy.WithOrigins("https://localhost:7001", "http://localhost:5001") // Τα URLs του Blazor
+            policy.WithOrigins("https://localhost:7034", "http://localhost:5018", "https://localhost:7134", "http://localhost:5016") // Τα URLs του Blazor
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .AllowAnyMethod()
+                  .AllowCredentials();
         });
 });
 
 // 4. Προσθήκη Swagger (Για να δοκιμάζουμε το API μας μέσα από UI)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddHttpClient<IAiService, AiService>();
+
+// 5. Ρύθμιση του Authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "NeurabrainAuth";
+        options.Cookie.HttpOnly = true;
+        // Το SameSite.Lax επιτρέπει στο cookie να παίζει σωστά ανάμεσα στα subdomains
+        options.Cookie.SameSite = SameSiteMode.Lax;
+
+        // Όταν μπει σε παραγωγή (π.χ. neurabrain.gr), θα προσθέσουμε:
+        // options.Cookie.Domain = ".neurabrain.gr"; 
+
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = 401; // Αντί να κάνει redirect, το API απλά λέει "Απαγορεύεται"
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode = 403;
+            return Task.CompletedTask;
+        };
+    });
 
 var app = builder.Build();
 
@@ -40,6 +70,7 @@ app.UseHttpsRedirection();
 // Ενεργοποίηση του CORS
 app.UseCors("AllowBlazorClient");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Χαρτογράφηση των Controllers

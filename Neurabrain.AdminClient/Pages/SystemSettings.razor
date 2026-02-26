@@ -1,6 +1,5 @@
-﻿@page "/system-settings"
-@* Ξεσχολιάζουμε την παρακάτω γραμμή όταν προσθέσουμε το σύστημα Login *@
-@* @attribute [Authorize(Roles = "SuperAdmin")] *@
+﻿@page "/admin/system-settings"
+@attribute [Authorize(Roles = "SuperAdmin")]
 @inject HttpClient Http
 
 <PageTitle>Ρυθμίσεις Συστήματος - Neurabrain</PageTitle>
@@ -60,20 +59,20 @@
     }
 </div>
 
+@using Neurabrain.Shared.DTOs
+@using System.Net.Http.Json
+
 @code {
     private bool isLoading = true;
     private bool isSaving = false;
     private bool saveSuccess = false;
 
-    // Ένα προσωρινό τοπικό μοντέλο. Αργότερα αυτό θα γίνει DTO στο Shared project.
     private SystemSettingsDto settings = new SystemSettingsDto();
 
     protected override async Task OnInitializedAsync()
     {
-        // Εδώ στο μέλλον θα κάνουμε HTTP GET στο API για να φέρουμε το ήδη αποθηκευμένο κλειδί
-        // settings = await Http.GetFromJsonAsync<SystemSettingsDto>("api/settings");
-
-        await Task.Delay(500); // Προσομοίωση φόρτωσης
+        // Φέρνουμε το κλειδί από τη Βάση!
+        settings = await Http.GetFromJsonAsync<SystemSettingsDto>("api/settings") ?? new SystemSettingsDto();
         isLoading = false;
     }
 
@@ -82,18 +81,14 @@
         isSaving = true;
         saveSuccess = false;
 
-        // Εδώ θα κάνουμε HTTP POST/PUT στο API για να αποθηκεύσουμε το νέο κλειδί στη Βάση Δεδομένων
-        // var response = await Http.PostAsJsonAsync("api/settings", settings);
+        // Στέλνουμε το νέο κλειδί στη Βάση!
+        var response = await Http.PostAsJsonAsync("api/settings", settings);
 
-        await Task.Delay(800); // Προσομοίωση αποθήκευσης στο δίκτυο
+        if (response.IsSuccessStatusCode)
+        {
+            saveSuccess = true;
+        }
 
         isSaving = false;
-        saveSuccess = true;
-    }
-
-    // DTO Class (Μελλοντικά θα μεταφερθεί στο Neurabrain.Shared/DTOs)
-    public class SystemSettingsDto
-    {
-        public string GeminiApiKey { get; set; } = string.Empty;
     }
 }

@@ -12,9 +12,16 @@ namespace Neurabrain.Shared.DTOs
         public Guid Id { get; set; }
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        public UserRole Role { get; set; }
 
-        // Αν είναι μαθητής, επιστρέφουμε και το προφίλ του
-        public ConditionType? Condition { get; set; }
+        // Χρησιμοποιούμε string για τον ρόλο ώστε να περνάει εύκολα μέσω JSON
+        public string Role { get; set; } = "Teacher";
+
+        // Ο κωδικός πρόσβασης (θα τον στέλνουμε μόνο κατά τη δημιουργία/επεξεργασία)
+        public string Password { get; set; } = string.Empty;
+
+        // Η λίστα με τα ID των φροντιστηρίων στα οποία εργάζεται
+        public List<Guid> OrganizationIds { get; set; } = new();
+
+        public DateTime CreatedAt { get; set; }
     }
 }

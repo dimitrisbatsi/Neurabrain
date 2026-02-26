@@ -1,6 +1,6 @@
 {
-  "name": "Neurabrain.Client",
-  "short_name": "Neurabrain.Client",
+  "name": "Neurabrain.AdminClient",
+  "short_name": "Neurabrain.AdminClient",
   "id": "./",
   "start_url": "./",
   "display": "standalone",

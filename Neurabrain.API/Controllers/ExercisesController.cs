@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Neurabrain.Domain.Interfaces;
 using Neurabrain.Shared.DTOs;
+using System.Text.Json;
 
 namespace Neurabrain.API.Controllers
 {
@@ -7,34 +9,48 @@ namespace Neurabrain.API.Controllers
     [Route("api/[controller]")]
     public class ExercisesController : ControllerBase
     {
+        private readonly IAiService _aiService;
+
         // Εδώ αργότερα θα κάνουμε Inject το DbContext και το AiService
-        public ExercisesController()
+        public ExercisesController(IAiService aiService)
         {
+            _aiService = aiService;
         }
 
         [HttpPost("generate")]
         public async Task<ActionResult<ExerciseResponse>> GenerateExercise([FromBody] CreateExerciseRequest request)
         {
-            // 1. Εδώ το DTO (CreateExerciseRequest) έρχεται αυτόματα επικυρωμένο από το Blazor!
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            // 2. Εδώ θα καλούσαμε το GeminiAiService (το αφήνουμε mock για την ώρα)
-            // var aiContent = await _aiService.GenerateAsync(request.RawText, request.TargetCondition, request.NumberOfQuestions);
-
-            // 3. Φτιάχνουμε μια εικονική (Mock) απάντηση για να δούμε ότι δουλεύει
-            var response = new ExerciseResponse
+            try
             {
-                ExerciseId = Guid.NewGuid(),
-                TargetCondition = request.TargetCondition,
-                AIContentJson = "{ \"message\": \"Η AI απάντηση θα μπει εδώ!\" }",
-                GeneratedAt = DateTime.UtcNow
-            };
+                // 1. Καλούμε το AI Service!
+                var aiContentJson = await _aiService.GenerateExercisesAsync(
+                    request.RawText,
+                    request.TargetCondition,
+                    request.NumberOfQuestions);
 
-            // Επιστρέφουμε HTTP 200 OK μαζί με το αποτέλεσμα (ExerciseResponse DTO)
-            return Ok(response);
+                var beautifiedJson = JsonSerializer.Deserialize<JsonElement>(aiContentJson);
+
+                // 2. Φτιάχνουμε την απάντηση που θα πάει στο Blazor
+                var response = new ExerciseResponse
+                {
+                    ExerciseId = Guid.NewGuid(), // Προς το παρόν βάζουμε ένα τυχαίο ID
+                    TargetCondition = request.TargetCondition,
+                    AIContentJson = beautifiedJson, // Το "καθαρό" JSON που μας έστειλε η AI
+                    GeneratedAt = DateTime.UtcNow
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                // Αν κάτι πάει στραβά (π.χ. λάθος API Key ή πέσει ο server της Google)
+                return StatusCode(500, new { message = $"Σφάλμα κατά την επικοινωνία με το AI: {ex.Message}" });
+            }
         }
     }
 }

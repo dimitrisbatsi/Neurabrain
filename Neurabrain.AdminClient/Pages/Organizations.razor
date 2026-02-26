@@ -1,0 +1,214 @@
+﻿@page "/admin/organizations"
+@attribute [Authorize(Roles = "SuperAdmin, Admin")]
+@using Neurabrain.Shared.DTOs
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Διαχείριση Οργανισμών & Φροντιστηρίων</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Οργανισμοί / Εκπαιδευτήρια</h2>
+        <AuthorizeView Roles="SuperAdmin, Admin">
+            <button class="btn btn-primary" @onclick="CreateNew">
+                <i class="bi bi-building"></i> + Νέος Οργανισμός
+            </button>
+        </AuthorizeView>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <p><em>Φόρτωση δεδομένων...</em></p>
+                    }
+                    else if (!organizations.Any())
+                    {
+                        <p>Δεν υπάρχουν καταχωρημένοι οργανισμοί.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Όνομα Φροντιστηρίου</th>
+                                    <th>ΑΦΜ</th>
+                                    <th>Όριο Μαθητών</th>
+                                    <th>Ημ/νια Εγγραφής</th>
+                                    <th>Ενέργειες</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var org in organizations)
+                                {
+                                    <tr>
+                                        <td><strong>@org.Name</strong></td>
+                                        <td>@(string.IsNullOrEmpty(org.TaxId) ? "-" : org.TaxId)</td>
+                                        <td>
+                                            <span class="badge bg-info text-dark">@org.MaxStudents</span>
+                                        </td>
+                                        <td>@org.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditOrganization(org)">Επεξεργασία</button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteOrganization(org.Id)">Διαγραφή</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            @if (showForm)
+            {
+                <div class="card shadow-sm border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-building"></i> @(currentOrganization.Id == Guid.Empty ? "Νέος Οργανισμός" : "Επεξεργασία")
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Επωνυμία Οργανισμού</label>
+                            <input type="text" class="form-control" @bind="currentOrganization.Name" placeholder="π.χ. Φροντιστήριο 'Η Μάθηση'" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">ΑΦΜ (Προαιρετικό)</label>
+                            <input type="text" class="form-control" @bind="currentOrganization.TaxId" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Μέγιστος Αριθμός Μαθητών</label>
+                            <input type="number" class="form-control" @bind="currentOrganization.MaxStudents" min="1" />
+                            <small class="text-muted">Βάσει του πακέτου συνδρομής τους.</small>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-secondary me-2" @onclick="CancelEdit">Ακύρωση</button>
+                            <button class="btn btn-success" @onclick="SaveOrganization" disabled="@isSaving">
+                                @(isSaving ? "Αποθήκευση..." : "Αποθήκευση")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<OrganizationDto> organizations = new();
+    private OrganizationDto currentOrganization = new();
+
+    private bool isLoading = true;
+    private bool showForm = false;
+    private bool isSaving = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrganizations();
+    }
+
+    private async Task LoadOrganizations()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        try
+        {
+            organizations = await Http.GetFromJsonAsync<List<OrganizationDto>>("api/organizations") ?? new();
+        }
+        catch (Exception)
+        {
+            errorMessage = "Σφάλμα κατά τη φόρτωση των δεδομένων.";
+        }
+        isLoading = false;
+    }
+
+    private void CreateNew()
+    {
+        currentOrganization = new OrganizationDto { MaxStudents = 50 }; // Μια default τιμή
+        showForm = true;
+        errorMessage = string.Empty;
+    }
+
+    private void EditOrganization(OrganizationDto org)
+    {
+        currentOrganization = new OrganizationDto
+        {
+            Id = org.Id,
+            Name = org.Name,
+            TaxId = org.TaxId,
+            MaxStudents = org.MaxStudents,
+            CreatedAt = org.CreatedAt
+        };
+        showForm = true;
+        errorMessage = string.Empty;
+    }
+
+    private void CancelEdit()
+    {
+        showForm = false;
+        currentOrganization = new();
+        errorMessage = string.Empty;
+    }
+
+    private async Task SaveOrganization()
+    {
+        if (string.IsNullOrWhiteSpace(currentOrganization.Name))
+        {
+            errorMessage = "Η επωνυμία του οργανισμού είναι υποχρεωτική.";
+            return;
+        }
+
+        isSaving = true;
+        errorMessage = string.Empty;
+
+        HttpResponseMessage response;
+
+        if (currentOrganization.Id == Guid.Empty)
+        {
+            response = await Http.PostAsJsonAsync("api/organizations", currentOrganization);
+        }
+        else
+        {
+            response = await Http.PutAsJsonAsync($"api/organizations/{currentOrganization.Id}", currentOrganization);
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadOrganizations();
+            showForm = false;
+        }
+        else
+        {
+            errorMessage = "Υπήρξε ένα πρόβλημα κατά την αποθήκευση.";
+        }
+
+        isSaving = false;
+    }
+
+    private async Task DeleteOrganization(Guid id)
+    {
+        errorMessage = string.Empty;
+        var response = await Http.DeleteAsync($"api/organizations/{id}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadOrganizations();
+        }
+        else
+        {
+            errorMessage = await response.Content.ReadAsStringAsync();
+        }
+    }
+}

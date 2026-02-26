@@ -11,13 +11,18 @@ namespace Neurabrain.Domain.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
 
-        // Foreign Key
+        // Σε ποιον User ανήκει το προφίλ
         public Guid UserId { get; set; }
         public User User { get; set; } = null!;
 
-        public ConditionType Condition { get; set; }
+        // Το TenantId (Σε ποιο Φροντιστήριο δημιουργήθηκε/ανήκει αυτό το προφίλ)
+        public Guid OrganizationId { get; set; }
+        public Organization Organization { get; set; } = null!;
 
-        // JSON string για UI preferences (π.χ. font, contrast)
+        // Foreign Key στη νέα μας βάση Μαθησιακών Δυσκολιών (αντί για Enum)
+        public Guid LearningConditionId { get; set; }
+        public LearningCondition LearningCondition { get; set; } = null!;
+
         public string UIPreferencesJson { get; set; } = "{}";
     }
 }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Neurabrain.Infrastructure.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Neurabrain.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260225153646_AddHybridMultiTenancy")]
+    partial class AddHybridMultiTenancy
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -170,42 +173,6 @@ namespace Neurabrain.Infrastructure.Migrations
                     b.ToTable("StudentProfiles");
                 });
 
-            modelBuilder.Entity("Neurabrain.Domain.Entities.Subscription", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CurrentPeriodEnd")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PlanName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("StripeSubscriptionId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.ToTable("Subscriptions");
-                });
-
             modelBuilder.Entity("Neurabrain.Domain.Entities.SystemSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -330,17 +297,6 @@ namespace Neurabrain.Infrastructure.Migrations
                     b.Navigation("Organization");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Neurabrain.Domain.Entities.Subscription", b =>
-                {
-                    b.HasOne("Neurabrain.Domain.Entities.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("Neurabrain.Domain.Entities.UserOrganization", b =>

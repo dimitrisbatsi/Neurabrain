@@ -1,0 +1,84 @@
+﻿@page "/login"
+@using Neurabrain.Shared.DTOs
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+<PageTitle>Σύνδεση - Neurabrain Admin</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4><i class="bi bi-shield-lock"></i> Είσοδος Διαχειριστή</h4>
+                </div>
+                <div class="card-body p-4">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">@errorMessage</div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" @bind="loginDto.Email" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Κωδικός Πρόσβασης</label>
+                        <input type="password" class="form-control" @bind="loginDto.Password" @onkeyup="HandleKeyPress" />
+                    </div>
+
+                    <button class="btn btn-primary w-100" @onclick="DoLogin" disabled="@isLoading">
+                        @(isLoading ? "Φόρτωση..." : "Σύνδεση")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginDto loginDto = new();
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    private async Task DoLogin()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/login", loginDto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Ενημερώνουμε το σύστημα ότι μόλις συνδεθήκαμε!
+                ((CustomAuthStateProvider)AuthStateProvider).NotifyAuthState();
+
+                // Πάμε στην αρχική σελίδα
+                NavManager.NavigateTo("/admin/users");
+            }
+            else
+            {
+                errorMessage = "Λάθος email ή κωδικός πρόσβασης.";
+            }
+        }
+        catch
+        {
+            errorMessage = "Αδυναμία επικοινωνίας με τον server.";
+        }
+
+        isLoading = false;
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await DoLogin();
+        }
+    }
+}

@@ -1,0 +1,22 @@
+﻿<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <div class="container text-center mt-5">
+                        <h3 class="text-danger">Δεν έχετε πρόσβαση!</h3>
+                        <p>Παρακαλώ κάντε σύνδεση για να δείτε αυτή τη σελίδα.</p>
+                        <a href="/login" class="btn btn-primary">Μετάβαση στο Login</a>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Δεν βρέθηκε</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p role="alert">Η σελίδα δεν υπάρχει.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

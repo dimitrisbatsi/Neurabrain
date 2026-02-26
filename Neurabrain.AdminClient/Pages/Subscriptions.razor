@@ -1,0 +1,234 @@
+﻿@page "/admin/subscriptions"
+@attribute [Authorize(Roles = "SuperAdmin, Admin")]
+@using Neurabrain.Shared.DTOs
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Διαχείριση Συνδρομών</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Συνδρομές & Πακέτα (Billing)</h2>
+        <button class="btn btn-primary" @onclick="CreateNew">
+            <i class="bi bi-credit-card"></i> + Νέα Συνδρομή
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <p><em>Φόρτωση...</em></p>
+                    }
+                    else if (!subscriptions.Any())
+                    {
+                        <p>Δεν υπάρχουν ενεργές συνδρομές.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Οργανισμός/Φροντιστήριο</th>
+                                    <th>Πακέτο</th>
+                                    <th>Κατάσταση</th>
+                                    <th>Ημ/νια Λήξης</th>
+                                    <th>Ενέργειες</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var sub in subscriptions)
+                                {
+                                    <tr>
+                                        <td><strong>@sub.OrganizationName</strong></td>
+                                        <td><span class="badge bg-info text-dark">@sub.PlanName</span></td>
+                                        <td>
+                                            @if (sub.Status == "Active")
+                                            {
+                                                <span class="badge bg-success">Ενεργή</span>
+                                            }
+                                            else if (sub.Status == "Canceled")
+                                            {
+                                                <span class="badge bg-danger">Ακυρωμένη</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning text-dark">@sub.Status</span>
+                                            }
+                                        </td>
+                                        <td>@sub.CurrentPeriodEnd.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditSubscription(sub)">Επεξεργασία</button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteSubscription(sub.Id)">Διαγραφή</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            @if (showForm)
+            {
+                <div class="card shadow-sm border-primary">
+                    <div class="card-header bg-primary text-white">
+                        @(currentSubscription.Id == Guid.Empty ? "Νέα Συνδρομή" : "Επεξεργασία Συνδρομής")
+                    </div>
+                    <div class="card-body">
+
+                        <div class="mb-3">
+                            <label class="form-label">Επιλογή Οργανισμού</label>
+                            <select class="form-select" @bind="currentSubscription.OrganizationId">
+                                <option value="@Guid.Empty">-- Επιλέξτε Φροντιστήριο --</option>
+                                @foreach (var org in organizations)
+                                {
+                                    <option value="@org.Id">@org.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Όνομα Πακέτου (Plan)</label>
+                            <select class="form-select" @bind="currentSubscription.PlanName">
+                                <option value="Free Trial">Free Trial (Δοκιμαστικό)</option>
+                                <option value="Basic">Basic (Έως 50 μαθητές)</option>
+                                <option value="Pro Educator">Pro Educator (Απεριόριστο)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Κατάσταση (Status)</label>
+                            <select class="form-select" @bind="currentSubscription.Status">
+                                <option value="Active">Active (Ενεργή)</option>
+                                <option value="PastDue">Past Due (Απλήρωτη)</option>
+                                <option value="Canceled">Canceled (Ακυρωμένη)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Ημερομηνία Λήξης</label>
+                            <input type="date" class="form-control" @bind="currentSubscription.CurrentPeriodEnd" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Stripe ID (Προαιρετικό)</label>
+                            <input type="text" class="form-control" @bind="currentSubscription.StripeSubscriptionId" placeholder="sub_xxxxxx" />
+                            <small class="text-muted">Χρησιμοποιείται για αυτόματες πληρωμές.</small>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-secondary me-2" @onclick="CancelEdit">Ακύρωση</button>
+                            <button class="btn btn-success" @onclick="SaveSubscription">Αποθήκευση</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<SubscriptionDto> subscriptions = new();
+    private List<OrganizationDto> organizations = new(); // Για το Dropdown επιλογής φροντιστηρίου
+    private SubscriptionDto currentSubscription = new();
+
+    private bool isLoading = true;
+    private bool showForm = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(LoadSubscriptions(), LoadOrganizations());
+        isLoading = false;
+    }
+
+    private async Task LoadSubscriptions()
+    {
+        subscriptions = await Http.GetFromJsonAsync<List<SubscriptionDto>>("api/subscriptions") ?? new();
+    }
+
+    private async Task LoadOrganizations()
+    {
+        organizations = await Http.GetFromJsonAsync<List<OrganizationDto>>("api/organizations") ?? new();
+    }
+
+    private void CreateNew()
+    {
+        currentSubscription = new SubscriptionDto
+        {
+            PlanName = "Free Trial",
+            Status = "Active",
+            CurrentPeriodEnd = DateTime.UtcNow.AddMonths(1)
+        };
+        showForm = true;
+    }
+
+    private void EditSubscription(SubscriptionDto sub)
+    {
+        currentSubscription = new SubscriptionDto
+        {
+            Id = sub.Id,
+            OrganizationId = sub.OrganizationId,
+            PlanName = sub.PlanName,
+            Status = sub.Status,
+            StripeSubscriptionId = sub.StripeSubscriptionId,
+            CurrentPeriodEnd = sub.CurrentPeriodEnd
+        };
+        showForm = true;
+    }
+
+    private void CancelEdit()
+    {
+        showForm = false;
+    }
+
+    private async Task SaveSubscription()
+    {
+        if (currentSubscription.OrganizationId == Guid.Empty)
+        {
+            errorMessage = "Πρέπει να επιλέξετε έναν Οργανισμό.";
+            return;
+        }
+
+        errorMessage = string.Empty;
+        HttpResponseMessage response;
+
+        if (currentSubscription.Id == Guid.Empty)
+        {
+            response = await Http.PostAsJsonAsync("api/subscriptions", currentSubscription);
+        }
+        else
+        {
+            response = await Http.PutAsJsonAsync($"api/subscriptions/{currentSubscription.Id}", currentSubscription);
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadSubscriptions();
+            showForm = false;
+        }
+        else
+        {
+            errorMessage = "Σφάλμα κατά την αποθήκευση.";
+        }
+    }
+
+    private async Task DeleteSubscription(Guid id)
+    {
+        var response = await Http.DeleteAsync($"api/subscriptions/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadSubscriptions();
+        }
+    }
+}
