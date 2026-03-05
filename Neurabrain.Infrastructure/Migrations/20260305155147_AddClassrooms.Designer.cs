@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Neurabrain.Infrastructure.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Neurabrain.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260305155147_AddClassrooms")]
+    partial class AddClassrooms
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,33 +24,6 @@ namespace Neurabrain.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Neurabrain.Domain.Entities.Assignment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ClassroomId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("GeneratedExerciseId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClassroomId");
-
-                    b.HasIndex("GeneratedExerciseId");
-
-                    b.ToTable("Assignments");
-                });
 
             modelBuilder.Entity("Neurabrain.Domain.Entities.Classroom", b =>
                 {
@@ -349,25 +325,6 @@ namespace Neurabrain.Infrastructure.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("UserOrganizations");
-                });
-
-            modelBuilder.Entity("Neurabrain.Domain.Entities.Assignment", b =>
-                {
-                    b.HasOne("Neurabrain.Domain.Entities.Classroom", "Classroom")
-                        .WithMany()
-                        .HasForeignKey("ClassroomId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Neurabrain.Domain.Entities.GeneratedExercise", "GeneratedExercise")
-                        .WithMany()
-                        .HasForeignKey("GeneratedExerciseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Classroom");
-
-                    b.Navigation("GeneratedExercise");
                 });
 
             modelBuilder.Entity("Neurabrain.Domain.Entities.Classroom", b =>

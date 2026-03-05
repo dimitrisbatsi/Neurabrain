@@ -20,6 +20,9 @@ namespace Neurabrain.Infrastructure.Data
         public DbSet<SourceMaterial> SourceMaterials { get; set; }
         public DbSet<GeneratedExercise> GeneratedExercises { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
+        public DbSet<Classroom> Classrooms { get; set; }
+        public DbSet<ClassroomStudent> ClassroomStudents { get; set; }
+        public DbSet<Assignment> Assignments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -141,6 +144,35 @@ namespace Neurabrain.Infrastructure.Data
                       .HasForeignKey(s => s.OrganizationId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
+
+            // 10. Ρύθμιση για το ClassroomStudent (Many-to-Many)
+            modelBuilder.Entity<ClassroomStudent>()
+                .HasKey(cs => new { cs.ClassroomId, cs.StudentId });
+
+            modelBuilder.Entity<ClassroomStudent>()
+                .HasOne(cs => cs.Classroom)
+                .WithMany(c => c.ClassroomStudents)
+                .HasForeignKey(cs => cs.ClassroomId)
+                .OnDelete(DeleteBehavior.Cascade); // Αν διαγραφεί η τάξη, διαγράφονται και οι συνδέσεις
+
+            modelBuilder.Entity<ClassroomStudent>()
+                .HasOne(cs => cs.Student)
+                .WithMany() // Δεν χρειαζόμαστε navigation property στο User για να μην το βαρύνουμε
+                .HasForeignKey(cs => cs.StudentId)
+                .OnDelete(DeleteBehavior.Restrict); // Προστασία: Δεν σβήνουμε τον User αν σβηστεί η σύνδεση
+
+            // 11. Ρυθμίσεις για τις Αναθέσεις (Assignments)
+            modelBuilder.Entity<Assignment>()
+                .HasOne(a => a.GeneratedExercise)
+                .WithMany(ge => ge.Assignments)
+                .HasForeignKey(a => a.GeneratedExerciseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Assignment>()
+                .HasOne(a => a.Classroom)
+                .WithMany(c => c.Assignments)
+                .HasForeignKey(a => a.ClassroomId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

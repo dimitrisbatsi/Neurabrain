@@ -1,0 +1,242 @@
+﻿@page "/workspace"
+@attribute [Authorize(Roles = "Teacher")]
+@inject HttpClient Http
+
+<PageTitle>Χώρος Εργασίας - Neurabrain</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-journal-text me-2"></i> Το Υλικό μου</h2>
+        
+        @if (!showForm)
+        {
+            <button class="btn btn-primary" @onclick="CreateNew">
+                <i class="bi bi-plus-lg me-1"></i> Νέο Κείμενο
+            </button>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Φόρτωση δεδομένων...</p>
+        </div>
+    }
+    else if (showForm)
+    {
+        <div class="card shadow-sm mb-4 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">@(currentMaterial.Id == Guid.Empty ? "Προσθήκη Νέας Πηγής" : "Επεξεργασία Πηγής")</h5>
+            </div>
+            <div class="card-body">
+                <EditForm Model="currentMaterial" OnValidSubmit="SaveMaterial">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Τίτλος</label>
+                        <InputText class="form-control" @bind-Value="currentMaterial.Title" placeholder="π.χ. Ιστορία Α' Λυκείου - Κεφάλαιο 1" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Κείμενο (Πηγή)</label>
+                        <InputTextArea class="form-control" @bind-Value="currentMaterial.RawContent" rows="12" placeholder="Επικολλήστε εδώ το κείμενο που θα χρησιμοποιηθεί ως βάση για τις ασκήσεις..." style="resize: vertical;" />
+                        <small class="text-muted">Μπορείτε να επικολλήσετε σημειώσεις, αποσπάσματα βιβλίων ή άρθρα.</small>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="button" class="btn btn-secondary me-2" @onclick="CancelEdit">Ακύρωση</button>
+                        <button type="submit" class="btn btn-success" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                <span>Αποθήκευση...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-lg me-1"></i> <span>Αποθήκευση Υλικού</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @if (materials == null || !materials.Any())
+            {
+                <div class="col-12 text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                    <h5>Δεν έχετε ανεβάσει υλικό ακόμα.</h5>
+                    <p>Πατήστε το "Νέο Κείμενο" για να προσθέσετε την πρώτη σας πηγή.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var material in materials)
+                {
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 shadow-sm border-0 bg-light hover-shadow transition">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary text-truncate" title="@material.Title">@material.Title</h5>
+                                <h6 class="card-subtitle mb-3 text-muted" style="font-size: 0.85rem;">
+                                    <i class="bi bi-calendar3 me-1"></i> @material.UploadedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                </h6>
+                                <p class="card-text text-muted" style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.9rem;">
+                                    @material.RawContent
+                                </p>
+                            </div>
+                            <div class="card-footer bg-transparent border-top-0 text-end pb-3">
+                                <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditMaterial(material)">
+                                    <i class="bi bi-pencil"></i> 
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteMaterial(material.Id)">
+                                    <i class="bi bi-trash"></i> 
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<SourceMaterialDto> materials = new();
+    private SourceMaterialDto currentMaterial = new();
+    
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool showForm = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            var result = await Http.GetFromJsonAsync<List<SourceMaterialDto>>("api/sourcematerials");
+            if (result != null)
+            {
+                materials = result;
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αποτυχία φόρτωσης του υλικού.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CreateNew()
+    {
+        errorMessage = null;
+        currentMaterial = new SourceMaterialDto();
+        showForm = true;
+    }
+
+    private void EditMaterial(SourceMaterialDto material)
+    {
+        errorMessage = null;
+        currentMaterial = new SourceMaterialDto
+        {
+            Id = material.Id,
+            Title = material.Title,
+            RawContent = material.RawContent,
+            OwnerUserId = material.OwnerUserId,
+            UploadedAt = material.UploadedAt
+        };
+        showForm = true;
+    }
+
+    private void CancelEdit()
+    {
+        showForm = false;
+        errorMessage = null;
+    }
+
+    private async Task SaveMaterial()
+    {
+        if (string.IsNullOrWhiteSpace(currentMaterial.Title) || string.IsNullOrWhiteSpace(currentMaterial.RawContent))
+        {
+            errorMessage = "Ο τίτλος και το κείμενο είναι υποχρεωτικά.";
+            return;
+        }
+
+        isSaving = true;
+        errorMessage = null;
+
+        try
+        {
+            HttpResponseMessage response;
+
+            if (currentMaterial.Id == Guid.Empty)
+            {
+                response = await Http.PostAsJsonAsync("api/sourcematerials", currentMaterial);
+            }
+            else
+            {
+                response = await Http.PutAsJsonAsync($"api/sourcematerials/{currentMaterial.Id}", currentMaterial);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                showForm = false;
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = "Προέκυψε σφάλμα κατά την αποθήκευση.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αδυναμία επικοινωνίας με τον διακομιστή.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteMaterial(Guid id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/sourcematerials/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = "Δεν ήταν δυνατή η διαγραφή του υλικού.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Σφάλμα επικοινωνίας με τον διακομιστή.";
+        }
+    }
+}

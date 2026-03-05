@@ -1,0 +1,328 @@
+﻿@page "/my-classes"
+@attribute [Authorize(Roles = "Teacher")]
+@inject HttpClient Http
+
+<PageTitle>Οι Τάξεις μου - Neurabrain</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-people me-2"></i> Οι Τάξεις μου</h2>
+        
+        @if (!showForm)
+        {
+            <button class="btn btn-primary" @onclick="CreateNew">
+                <i class="bi bi-plus-lg me-1"></i> Νέα Τάξη
+            </button>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Φόρτωση δεδομένων...</p>
+        </div>
+    }
+    else if (showForm)
+    {
+        <div class="card shadow-sm mb-4 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">@(currentClassroom.Id == Guid.Empty ? "Δημιουργία Νέας Τάξης" : "Επεξεργασία Τάξης")</h5>
+            </div>
+            <div class="card-body">
+                <EditForm Model="currentClassroom" OnValidSubmit="SaveClassroom">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Όνομα Τάξης</label>
+                            <InputText class="form-control" @bind-Value="currentClassroom.Name" placeholder="π.χ. Α' Λυκείου - Ιστορία" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Περιγραφή (Προαιρετικό)</label>
+                            <InputText class="form-control" @bind-Value="currentClassroom.Description" placeholder="π.χ. Προετοιμασία Πανελλαδικών" />
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+                    <h5 class="mb-3"><i class="bi bi-person-check me-2"></i>Επιλογή Μαθητών</h5>
+
+                    <div class="row">
+                        @if (availableStudents == null || !availableStudents.Any())
+                        {
+                            <div class="col-12 text-muted">
+                                Δεν βρέθηκαν μαθητές στο φροντιστήριό σας. Ζητήστε από τη διαχείριση να προσθέσει μαθητές.
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var student in availableStudents)
+                            {
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="student_@student.Id" 
+                                               checked="@currentClassroom.StudentIds.Contains(student.Id)"
+                                               @onchange="@(e => ToggleStudent(student.Id, e.Value))" />
+                                        <label class="form-check-label" for="student_@student.Id">
+                                            @student.FullName
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-secondary me-2" @onclick="CancelEdit">Ακύρωση</button>
+                        <button type="submit" class="btn btn-success" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                <span>Αποθήκευση...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-lg me-1"></i> <span>Αποθήκευση Τάξης</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @if (classrooms == null || !classrooms.Any())
+            {
+                <div class="col-12 text-center py-5 text-muted">
+                    <i class="bi bi-easel fs-1 d-block mb-3"></i>
+                    <h5>Δεν έχετε δημιουργήσει τάξεις ακόμα.</h5>
+                    <p>Πατήστε το "Νέα Τάξη" για να ξεκινήσετε.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var classroom in classrooms)
+                {
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm border-0 bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary"><i class="bi bi-easel2 me-2"></i>@classroom.Name</h5>
+                                @if (!string.IsNullOrEmpty(classroom.Description))
+                                {
+                                    <h6 class="card-subtitle mb-3 text-muted">@classroom.Description</h6>
+                                }
+                                
+                                <hr />
+                                <div class="mb-2 fw-bold text-secondary">Μαθητές (@classroom.StudentNames.Count):</div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @if (!classroom.StudentNames.Any())
+                                    {
+                                        <span class="badge bg-secondary">Κανένας Μαθητής</span>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var sName in classroom.StudentNames)
+                                        {
+                                            <span class="badge bg-info text-dark">@sName</span>
+                                        }
+                                    }
+                                </div>
+                                <hr class="my-2" />
+                                <div class="mb-1 fw-bold text-secondary" style="font-size: 0.85rem;">Ενεργές Ασκήσεις:</div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @if (!classroom.AssignedExerciseTitles.Any())
+                                    {
+                                        <span class="badge bg-light text-muted border">Καμία άσκηση</span>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var exTitle in classroom.AssignedExerciseTitles)
+                                        {
+                                            <span class="badge bg-primary">
+                                                <i class="bi bi-journal-check me-1"></i> @exTitle
+                                            </span>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent border-top-0 text-end pb-3">
+                                <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditClassroom(classroom)">
+                                    <i class="bi bi-pencil"></i> Επεξεργασία
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteClassroom(classroom.Id)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<ClassroomDto> classrooms = new();
+    private ClassroomDto currentClassroom = new();
+    private List<UserDto> availableStudents = new();
+    private Guid teacherOrganizationId;
+    
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool showForm = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            // 1. Βρίσκουμε το Φροντιστήριο του Καθηγητή
+            var orgs = await Http.GetFromJsonAsync<List<OrganizationDto>>("api/organizations");
+            var myOrg = orgs?.FirstOrDefault();
+            if (myOrg != null) teacherOrganizationId = myOrg.Id;
+
+            // 2. Φέρνουμε τους διαθέσιμους Μαθητές
+            var allUsers = await Http.GetFromJsonAsync<List<UserDto>>("api/users");
+            if (allUsers != null)
+            {
+                availableStudents = allUsers.Where(u => u.Role == "Student").ToList();
+            }
+
+            // 3. Φέρνουμε τις Τάξεις
+            var result = await Http.GetFromJsonAsync<List<ClassroomDto>>("api/classrooms");
+            if (result != null) classrooms = result;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αποτυχία φόρτωσης δεδομένων.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CreateNew()
+    {
+        errorMessage = null;
+        currentClassroom = new ClassroomDto { OrganizationId = teacherOrganizationId };
+        showForm = true;
+    }
+
+    private void EditClassroom(ClassroomDto classroom)
+    {
+        errorMessage = null;
+        currentClassroom = new ClassroomDto
+        {
+            Id = classroom.Id,
+            Name = classroom.Name,
+            Description = classroom.Description,
+            OrganizationId = classroom.OrganizationId,
+            StudentIds = new List<Guid>(classroom.StudentIds), // Copy list
+            StudentNames = new List<string>(classroom.StudentNames)
+        };
+        showForm = true;
+    }
+
+    private void ToggleStudent(Guid studentId, object? isChecked)
+    {
+        bool checkedValue = (bool)(isChecked ?? false);
+        if (checkedValue && !currentClassroom.StudentIds.Contains(studentId))
+        {
+            currentClassroom.StudentIds.Add(studentId);
+        }
+        else if (!checkedValue && currentClassroom.StudentIds.Contains(studentId))
+        {
+            currentClassroom.StudentIds.Remove(studentId);
+        }
+    }
+
+    private void CancelEdit()
+    {
+        showForm = false;
+        errorMessage = null;
+    }
+
+    private async Task SaveClassroom()
+    {
+        if (string.IsNullOrWhiteSpace(currentClassroom.Name))
+        {
+            errorMessage = "Το όνομα της τάξης είναι υποχρεωτικό.";
+            return;
+        }
+
+        isSaving = true;
+        errorMessage = null;
+
+        try
+        {
+            HttpResponseMessage response;
+
+            if (currentClassroom.Id == Guid.Empty)
+            {
+                response = await Http.PostAsJsonAsync("api/classrooms", currentClassroom);
+            }
+            else
+            {
+                response = await Http.PutAsJsonAsync($"api/classrooms/{currentClassroom.Id}", currentClassroom);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                showForm = false;
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = "Προέκυψε σφάλμα κατά την αποθήκευση.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αδυναμία επικοινωνίας με τον διακομιστή.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteClassroom(Guid id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/classrooms/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = "Δεν ήταν δυνατή η διαγραφή της τάξης.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Σφάλμα επικοινωνίας με τον διακομιστή.";
+        }
+    }
+}

@@ -1,0 +1,327 @@
+﻿@page "/my-exercises"
+@using System.Text.Json
+@attribute [Authorize(Roles = "Teacher")]
+@inject HttpClient Http
+
+<PageTitle>Βιβλιοθήκη Ασκήσεων - Neurabrain</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-collection me-2"></i> Η Βιβλιοθήκη μου</h2>
+        <a href="/exercise-generator" class="btn btn-outline-primary">
+            <i class="bi bi-magic me-1"></i> Νέα Άσκηση
+        </a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Φόρτωση δεδομένων...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @if (exercises == null || !exercises.Any())
+            {
+                <div class="col-12 text-center py-5 text-muted">
+                    <i class="bi bi-folder2-open fs-1 d-block mb-3"></i>
+                    <h5>Δεν έχετε δημιουργήσει ασκήσεις ακόμα.</h5>
+                    <p>Πηγαίνετε στη Γεννήτρια Ασκήσεων AI για να ξεκινήσετε.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var exercise in exercises)
+                {
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 shadow-sm border-0 bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary"><i class="bi bi-file-text me-2"></i>@exercise.SourceMaterialTitle</h5>
+                                <h6 class="card-subtitle mb-3 text-muted">
+                                    <span class="badge bg-info text-dark">@exercise.LearningConditionName</span>
+                                </h6>
+                                <p class="card-text small text-muted mb-2">
+                                    <i class="bi bi-clock me-1"></i> Δημιουργήθηκε: @exercise.GeneratedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                </p>
+
+                                <hr class="my-2" />
+                                <div class="mb-1 fw-bold text-secondary" style="font-size: 0.85rem;">Έχει ανατεθεί σε:</div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @if (!exercise.AssignedClassrooms.Any())
+                                    {
+                                        <span class="badge bg-light text-muted border">Καμία τάξη</span>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var assign in exercise.AssignedClassrooms)
+                                        {
+                                            <span class="badge bg-success d-inline-flex align-items-center pe-2">
+                                                @assign.ClassroomName
+                                                <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.45rem;" title="Αναίρεση Ανάθεσης" @onclick="() => RemoveAssignment(exercise.Id, assign.ClassroomId)"></button>
+                                            </span>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent border-top-0 pb-3 d-flex gap-2">
+                                <button class="btn btn-outline-info flex-grow-1" @onclick="() => OpenViewModal(exercise)">
+                                    <i class="bi bi-eye"></i> Προβολή
+                                </button>
+                                <button class="btn btn-primary flex-grow-1" @onclick="() => OpenAssignModal(exercise.Id)">
+                                    <i class="bi bi-send"></i> Ανάθεση
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@if (showViewModal && selectedExercise != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="bi bi-eye me-2"></i>Προβολή: @selectedExercise.SourceMaterialTitle</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseViewModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <span class="badge bg-secondary">Προφίλ: @selectedExercise.LearningConditionName</span>
+                    </div>
+
+                    @if (parsedItems.Any())
+                    {
+                        @foreach (var item in parsedItems)
+                        {
+                            <div class="card mb-3 border-info shadow-sm">
+                                <div class="card-body py-2">
+                                    <h6 class="fw-bold"><i class="bi bi-question-circle text-primary me-2"></i>@item.Question</h6>
+                                    <p class="mb-0 text-success"><i class="bi bi-check-circle me-2"></i>@item.Answer</p>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">Το περιεχόμενο της άσκησης δεν μπόρεσε να διαβαστεί σωστά.</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseViewModal">Κλείσιμο</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showAssignModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-send-check me-2"></i>Ανάθεση Άσκησης</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseAssignModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="assignmentModel" OnValidSubmit="SubmitAssignment">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Επιλογή Τάξης</label>
+                            <InputSelect class="form-select" @bind-Value="assignmentModel.ClassroomId">
+                                <option value="@Guid.Empty">-- Επιλέξτε Τάξη --</option>
+                                @foreach (var c in classrooms)
+                                {
+                                    <option value="@c.Id">@c.Name</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => assignmentModel.ClassroomId)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Προθεσμία (Προαιρετικό)</label>
+                            <InputDate class="form-control" @bind-Value="assignmentModel.DueDate" />
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="btn btn-secondary me-2" @onclick="CloseAssignModal">Ακύρωση</button>
+                            <button type="submit" class="btn btn-success" disabled="@isAssigning">
+                                @if (isAssigning)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                }
+                                <i class="bi bi-check-lg me-1"></i> Ανάθεση
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<GeneratedExerciseDto> exercises = new();
+    private List<ClassroomDto> classrooms = new();
+
+    private bool isLoading = true;
+    private bool showAssignModal = false;
+    private bool showViewModal = false;
+    private bool isAssigning = false;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    private CreateAssignmentDto assignmentModel = new();
+    private GeneratedExerciseDto? selectedExercise;
+    private List<AiParsedItem> parsedItems = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            var exResult = await Http.GetFromJsonAsync<List<GeneratedExerciseDto>>("api/generatedexercises");
+            if (exResult != null) exercises = exResult;
+
+            var clResult = await Http.GetFromJsonAsync<List<ClassroomDto>>("api/classrooms");
+            if (clResult != null) classrooms = clResult;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αποτυχία φόρτωσης δεδομένων.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // -- Λογική Ανάθεσης --
+    private void OpenAssignModal(Guid exerciseId)
+    {
+        errorMessage = null;
+        successMessage = null;
+        assignmentModel = new CreateAssignmentDto
+        {
+            GeneratedExerciseId = exerciseId,
+            DueDate = DateTime.Today.AddDays(3)
+        };
+        showAssignModal = true;
+    }
+
+    private void CloseAssignModal() => showAssignModal = false;
+
+    private async Task SubmitAssignment()
+    {
+        if (assignmentModel.ClassroomId == Guid.Empty)
+        {
+            errorMessage = "Παρακαλώ επιλέξτε τάξη.";
+            return;
+        }
+
+        isAssigning = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/assignments", assignmentModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = "Η άσκηση ανατέθηκε επιτυχώς στην τάξη!";
+                showAssignModal = false;
+                await LoadData(); // Refresh για να δείξει το νέο badge!
+            }
+            else
+            {
+                errorMessage = "Προέκυψε σφάλμα κατά την ανάθεση.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αδυναμία επικοινωνίας με τον διακομιστή.";
+        }
+        finally
+        {
+            isAssigning = false;
+        }
+    }
+
+    // -- Λογική Αναίρεσης Ανάθεσης --
+    private async Task RemoveAssignment(Guid exerciseId, Guid classroomId)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/assignments/exercise/{exerciseId}/classroom/{classroomId}");
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = "Η ανάθεση αναιρέθηκε επιτυχώς.";
+                await LoadData(); // Refresh για να φύγει το badge
+            }
+            else
+            {
+                errorMessage = "Δεν ήταν δυνατή η αναίρεση της ανάθεσης.";
+            }
+        }
+        catch
+        {
+            errorMessage = "Σφάλμα επικοινωνίας με τον διακομιστή.";
+        }
+    }
+
+    // -- Λογική Προβολής --
+    private void OpenViewModal(GeneratedExerciseDto exercise)
+    {
+        selectedExercise = exercise;
+        parsedItems.Clear();
+
+        if (!string.IsNullOrEmpty(exercise.AIContentJson))
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                parsedItems = JsonSerializer.Deserialize<List<AiParsedItem>>(exercise.AIContentJson, options) ?? new();
+            }
+            catch { /* Αφήνουμε τη λίστα άδεια για να δείξει το προειδοποιητικό μήνυμα */ }
+        }
+
+        showViewModal = true;
+    }
+
+    private void CloseViewModal() => showViewModal = false;
+
+    private class AiParsedItem
+    {
+        public string Question { get; set; } = string.Empty;
+        public string Answer { get; set; } = string.Empty;
+    }
+}

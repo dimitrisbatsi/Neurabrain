@@ -1,0 +1,219 @@
+﻿@page "/exercise-generator"
+@using System.Text.Json
+@attribute [Authorize(Roles = "Teacher")]
+@inject HttpClient Http
+
+<PageTitle>Γεννήτρια Ασκήσεων AI - Neurabrain</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-robot me-2 text-primary"></i> Γεννήτρια Ασκήσεων AI</h2>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-sliders me-2"></i> Παράμετροι</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="request" OnValidSubmit="GenerateExercise">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Πηγή Κειμένου</label>
+                            <InputSelect class="form-select" @bind-Value="request.SourceMaterialId">
+                                <option value="@Guid.Empty">-- Επιλέξτε Κείμενο --</option>
+                                @foreach (var material in materials)
+                                {
+                                    <option value="@material.Id">@material.Title</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Μαθησιακό Προφίλ</label>
+                            <InputSelect class="form-select" @bind-Value="request.LearningConditionId">
+                                <option value="@Guid.Empty">-- Επιλέξτε Προφίλ/Πάθηση --</option>
+                                @foreach (var condition in conditions)
+                                {
+                                    <option value="@condition.Id">@condition.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Πλήθος Ερωτήσεων</label>
+                            <InputNumber class="form-control" @bind-Value="request.NumberOfQuestions" min="1" max="10" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100" disabled="@isGenerating">
+                            @if (isGenerating)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                <span>Το AI σκέφτεται...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-magic me-2"></i> <span>Δημιουργία Άσκησης</span>
+                            }
+                        </button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i> Παραγόμενη Άσκηση</h5>
+                    @if (latestExercise != null)
+                    {
+                        <span class="badge bg-success">Ολοκληρώθηκε</span>
+                    }
+                </div>
+                <div class="card-body">
+                    @if (isGenerating)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-grow text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                            <h5 class="text-primary">Η Τεχνητή Νοημοσύνη διαβάζει το κείμενο...</h5>
+                            <p class="text-muted">Αυτό μπορεί να διαρκέσει μερικά δευτερόλεπτα.</p>
+                        </div>
+                    }
+                    else if (latestExercise == null)
+                    {
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-arrow-left-circle fs-1 d-block mb-3"></i>
+                            <p>Επιλέξτε παραμέτρους στα αριστερά και πατήστε "Δημιουργία" για να δείτε τα αποτελέσματα εδώ.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <strong>Πηγή:</strong> @latestExercise.SourceMaterialTitle <br/>
+                            <strong>Προφίλ:</strong> @latestExercise.LearningConditionName
+                        </div>
+
+                        <div class="mt-4">
+                            @foreach (var item in parsedItems)
+                            {
+                                <div class="card mb-3 border-info">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-dark fw-bold">
+                                            <i class="bi bi-question-circle text-primary me-2"></i> @item.Question
+                                        </h6>
+                                        <hr />
+                                        <p class="card-text text-success mb-0">
+                                            <i class="bi bi-check-circle me-2"></i> <strong>Απάντηση:</strong> @item.Answer
+                                        </p>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<SourceMaterialDto> materials = new();
+    private List<LearningConditionDto> conditions = new(); 
+    
+    private GenerateExerciseRequestDto request = new();
+    private GeneratedExerciseDto? latestExercise;
+    private List<AiParsedItem> parsedItems = new();
+
+    private bool isGenerating = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDropdownData();
+    }
+
+    private async Task LoadDropdownData()
+    {
+        try
+        {
+            // Παίρνουμε τα κείμενα του καθηγητή
+            var mats = await Http.GetFromJsonAsync<List<SourceMaterialDto>>("api/sourcematerials");
+            if (mats != null) materials = mats;
+
+            // Παίρνουμε τα διαθέσιμα μαθησιακά προφίλ (Αυτά που έφτιαξες από το Admin Panel)
+            var conds = await Http.GetFromJsonAsync<List<LearningConditionDto>>("api/learningconditions");
+            if (conds != null) conditions = conds;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αποτυχία φόρτωσης δεδομένων (Κείμενα ή Προφίλ).";
+        }
+    }
+
+    private async Task GenerateExercise()
+    {
+        if (request.SourceMaterialId == Guid.Empty || request.LearningConditionId == Guid.Empty)
+        {
+            errorMessage = "Παρακαλώ επιλέξτε κείμενο και μαθησιακό προφίλ.";
+            return;
+        }
+
+        isGenerating = true;
+        errorMessage = null;
+        latestExercise = null;
+        parsedItems.Clear();
+
+        try
+        {
+            // Στέλνουμε το αίτημα στον Controller που θα καλέσει το Gemini
+            var response = await Http.PostAsJsonAsync("api/generatedexercises/generate", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                latestExercise = await response.Content.ReadFromJsonAsync<GeneratedExerciseDto>();
+                
+                // Προσπαθούμε να διαβάσουμε το JSON που έστειλε το AI
+                if (latestExercise != null && !string.IsNullOrEmpty(latestExercise.AIContentJson))
+                {
+                    try
+                    {
+                        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                        parsedItems = JsonSerializer.Deserialize<List<AiParsedItem>>(latestExercise.AIContentJson, options) ?? new();
+                    }
+                    catch
+                    {
+                        errorMessage = "Το AI επέστρεψε δεδομένα, αλλά η μορφή τους δεν ήταν το αναμενόμενο JSON.";
+                    }
+                }
+            }
+            else
+            {
+                errorMessage = "Προέκυψε σφάλμα κατά την επικοινωνία με την Τεχνητή Νοημοσύνη.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αδυναμία επικοινωνίας με τον διακομιστή.";
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    // Μικρό βοηθητικό class για να διαβάσουμε το JSON του AI 
+    // (Πρέπει να ταιριάζει με τα κλειδιά που ζητήσαμε στο Prompt: 'question' και 'answer')
+    private class AiParsedItem
+    {
+        public string Question { get; set; } = string.Empty;
+        public string Answer { get; set; } = string.Empty;
+    }
+}

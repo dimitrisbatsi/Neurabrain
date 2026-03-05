@@ -20,5 +20,7 @@ namespace Neurabrain.Domain.Entities
 
         public string AIContentJson { get; set; } = string.Empty;
         public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+        // Λίστα με τις Αναθέσεις που έχουν γίνει με αυτή την άσκηση
+        public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
     }
 }

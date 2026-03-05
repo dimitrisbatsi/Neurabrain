@@ -40,9 +40,20 @@ namespace Neurabrain.API.Controllers
                 // Φέρνουμε μόνο τους χρήστες που ανήκουν σε αυτά τα φροντιστήρια
                 query = query.Where(u => u.UserOrganizations.Any(uo => myOrgIds.Contains(uo.OrganizationId)));
             }
+            else if (currentUserRole == "Teacher")
+            {
+                // Ο Καθηγητής βλέπει τον εαυτό του ΚΑΙ τους Μαθητές του φροντιστηρίου του
+                var myOrgIds = await _context.UserOrganizations
+                    .Where(uo => uo.UserId == currentUserId)
+                    .Select(uo => uo.OrganizationId)
+                    .ToListAsync();
+
+                query = query.Where(u => u.Id == currentUserId ||
+                                        (u.Role == UserRole.Student && u.UserOrganizations.Any(uo => myOrgIds.Contains(uo.OrganizationId))));
+            }
             else if (currentUserRole != "SuperAdmin" && currentUserRole != "Admin")
             {
-                // Αν είναι Καθηγητής/Μαθητής/Γονιός, βλέπει ΜΟΝΟ τον εαυτό του
+                // Οποιοσδήποτε άλλος (π.χ. απλός Μαθητής) βλέπει ΜΟΝΟ τον εαυτό του
                 query = query.Where(u => u.Id == currentUserId);
             }
 
