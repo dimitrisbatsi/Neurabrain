@@ -23,6 +23,7 @@ namespace Neurabrain.Infrastructure.Data
         public DbSet<Classroom> Classrooms { get; set; }
         public DbSet<ClassroomStudent> ClassroomStudents { get; set; }
         public DbSet<Assignment> Assignments { get; set; }
+        public DbSet<ExerciseResult> ExerciseResults { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -173,6 +174,19 @@ namespace Neurabrain.Infrastructure.Data
                 .WithMany(c => c.Assignments)
                 .HasForeignKey(a => a.ClassroomId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // 12. Ρυθμίσεις για τα Αποτελέσματα Ασκήσεων (ExerciseResults)
+            modelBuilder.Entity<ExerciseResult>()
+                .HasOne(er => er.Assignment)
+                .WithMany() // Αν θέλουμε στο μέλλον μπορούμε να προσθέσουμε ICollection<ExerciseResult> στο Assignment
+                .HasForeignKey(er => er.AssignmentId)
+                .OnDelete(DeleteBehavior.Cascade); // Αν διαγραφεί η Ανάθεση, διαγράφονται και τα αποτελέσματά της
+
+            modelBuilder.Entity<ExerciseResult>()
+                .HasOne(er => er.Student)
+                .WithMany()
+                .HasForeignKey(er => er.StudentId)
+                .OnDelete(DeleteBehavior.Cascade); // Αν διαγραφεί ο Μαθητής, διαγράφονται και τα αποτελέσματά του
         }
     }
 }

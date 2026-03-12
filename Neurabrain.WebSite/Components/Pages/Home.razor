@@ -1,0 +1,103 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@inject HttpClient Http
+
+<PageTitle>Dyskover - Early Access για Επαγγελματίες</PageTitle>
+
+<div class="container my-5 pt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 text-center">
+
+            <h1 class="display-5 fw-bold text-primary mb-4" style="line-height: 1.2;">
+                Προσαρμοσμένη διδασκαλία σε δευτερόλεπτα.<br />
+                <span class="text-dark">Ορατά αποτελέσματα για κάθε μαθητή σας.</span>
+            </h1>
+
+            <div class="text-start mx-auto mb-5 text-muted" style="font-size: 1.15rem; line-height: 1.7; max-width: 800px;">
+                <p>
+                    Το <strong>Dyskover</strong> είναι ο νέος AI συνεργάτης για εκπαιδευτήρια, λογοθεραπευτές και ειδικούς παιδαγωγούς.
+                    Ανεβάστε το δικό σας εκπαιδευτικό υλικό και αφήστε την πλατφόρμα να δημιουργήσει αυτόματα διαδραστικές,
+                    στοχευμένες ασκήσεις, προσαρμοσμένες στο μαθησιακό προφίλ κάθε παιδιού (ΔΕΠΥ, Δυσλεξία).
+                </p>
+                <p class="mb-0">
+                    Εξοικονομήστε πολύτιμες ώρες προετοιμασίας, μειώστε το γνωστικό φορτίο των μαθητών σας και προσφέρετε
+                    μια καινοτόμα εμπειρία μάθησης που κερδίζει την εμπιστοσύνη των γονιών.
+                </p>
+            </div>
+
+            <div class="card shadow-lg border-0 rounded-4 p-4 mx-auto bg-light" style="max-width: 650px;">
+                @if (isSubmitted)
+                {
+                    <div class="alert alert-success mb-0 fs-5">
+                        <i class="bi bi-check-circle-fill me-2"></i> Σας ευχαριστούμε! Το email σας καταχωρήθηκε επιτυχώς στη λίστα συνεργατών μας. Θα τα πούμε σύντομα!
+                    </div>
+                }
+                else
+                {
+                    <EditForm Model="waitlistModel" OnValidSubmit="SubmitWaitlist">
+                        <DataAnnotationsValidator />
+
+                        <div class="input-group input-group-lg mb-2 shadow-sm rounded">
+                            <span class="input-group-text bg-white text-muted border-end-0">
+                                <i class="bi bi-envelope"></i>
+                            </span>
+                            <InputText @bind-Value="waitlistModel.Email" type="email" class="form-control border-start-0 ps-0" placeholder="Το επαγγελματικό σας email..." />
+                            <button type="submit" class="btn btn-primary px-4 fw-bold" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                }
+                                Μπείτε στη Λίστα Συνεργατών
+                            </button>
+                        </div>
+                        <ValidationMessage For="@(() => waitlistModel.Email)" class="text-danger mb-3 d-block text-start" />
+
+                        <p class="small text-muted mb-0 mt-3 text-center">
+                            <i class="bi bi-shield-check text-success me-1"></i>
+                            Καμία δέσμευση. Θα ειδοποιηθείτε πρώτοι, αποκλειστικά για την έναρξη του πιλοτικού προγράμματος επαγγελματιών.
+                        </p>
+                    </EditForm>
+                }
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    private WaitlistDto waitlistModel = new();
+    private bool isLoading = false;
+    private bool isSubmitted = false;
+
+    private async Task SubmitWaitlist()
+    {
+        isLoading = true;
+
+        try
+        {
+            // Καλεί τον WaitlistController που φτιάξαμε στο Neurabrain.API
+            var response = await Http.PostAsJsonAsync("api/waitlist", waitlistModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                isSubmitted = true;
+            }
+        }
+        catch (Exception)
+        {
+            // Error handling
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public class WaitlistDto
+    {
+        [Required(ErrorMessage = "Το email είναι υποχρεωτικό.")]
+        [EmailAddress(ErrorMessage = "Παρακαλώ εισάγετε ένα έγκυρο email.")]
+        public string Email { get; set; } = string.Empty;
+    }
+}

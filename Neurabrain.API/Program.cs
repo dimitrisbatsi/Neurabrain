@@ -19,7 +19,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowBlazorClient",
         policy =>
         {
-            policy.WithOrigins("https://localhost:7034", "http://localhost:5018", "https://localhost:7134", "http://localhost:5016") // Τα URLs του Blazor
+            policy.WithOrigins("https://localhost:7034", "http://localhost:5018", "https://localhost:7134", "http://localhost:5016", "https://localhost:7093", "http://localhost:5095") // Τα URLs του Blazor
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials();

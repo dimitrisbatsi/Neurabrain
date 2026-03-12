@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neurabrain.AdminClient", "N
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neurabrain.AppClient", "Neurabrain.AppClient\Neurabrain.AppClient.csproj", "{E6287626-9750-4AE9-A7E8-499FB07AA9B6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neurabrain.WebSite", "Neurabrain.WebSite\Neurabrain.WebSite.csproj", "{95968949-D8EF-46E2-A0D3-36C63DFEF985}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{E6287626-9750-4AE9-A7E8-499FB07AA9B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E6287626-9750-4AE9-A7E8-499FB07AA9B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E6287626-9750-4AE9-A7E8-499FB07AA9B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{95968949-D8EF-46E2-A0D3-36C63DFEF985}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95968949-D8EF-46E2-A0D3-36C63DFEF985}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95968949-D8EF-46E2-A0D3-36C63DFEF985}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95968949-D8EF-46E2-A0D3-36C63DFEF985}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,277 @@
+﻿@page "/play/{AssignmentId:guid}"
+@using System.Text.Json
+@attribute [Authorize(Roles = "Student")]
+@inject HttpClient Http
+@inject NavigationManager NavManager
+
+<PageTitle>Αποστολή - Neurabrain</PageTitle>
+
+<div class="container mt-4 mb-5 max-w-md mx-auto" style="max-width: 800px;">
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5 mt-5">
+            <div class="spinner-border text-primary" style="width: 4rem; height: 4rem;" role="status"></div>
+            <h4 class="mt-4 text-primary fw-bold">Ετοιμάζουμε την αποστολή...</h4>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger shadow-sm rounded-4">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
+            <button class="btn btn-outline-danger btn-sm ms-3" @onclick="GoBack">Επιστροφή</button>
+        </div>
+    }
+    else if (isCompleted)
+    {
+        <div class="card border-0 shadow-lg rounded-4 text-center py-5 overflow-hidden position-relative">
+            <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10"></div> @*bg-success*@
+            <div class="card-body position-relative z-index-1">
+                <i class="bi bi-star-fill text-warning mb-3 d-inline-block" style="font-size: 5rem; text-shadow: 0 4px 15px rgba(255,193,7,0.4);"></i>
+                <h1 class="fw-bold text-success mb-3">Αποστολή Εξετελέσθη!</h1>
+                <p class="fs-4 text-muted mb-4">Τα πήγες περίφημα στο: <strong>@assignment?.Title</strong></p>
+                <div class="d-inline-block bg-light rounded-pill px-4 py-2 mb-4 border border-2 border-warning shadow-sm">
+                    <span class="fs-5 fw-bold text-dark">Σκορ: <span class="text-primary">@score</span> / @parsedItems.Count</span>
+                </div>
+                <br />
+                <button class="btn btn-primary btn-lg rounded-pill px-5 py-3 fw-bold shadow" @onclick="GoBack">
+                    <i class="bi bi-house-door-fill me-2"></i> Επιστροφή στο Ταμπλό
+                </button>
+            </div>
+        </div>
+    }
+    else if (parsedItems.Any())
+    {
+        var currentItem = parsedItems[currentIndex];
+        var progressPercentage = (int)(((double)currentIndex / parsedItems.Count) * 100);
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button class="btn btn-light rounded-circle shadow-sm" @onclick="GoBack" title="Εγκατάλειψη">
+                <i class="bi bi-x-lg text-danger"></i>
+            </button>
+            <h5 class="mb-0 text-muted fw-bold">@assignment?.Title</h5>
+            <div class="badge bg-primary rounded-pill px-3 py-2 fs-6 shadow-sm">
+                @score <i class="bi bi-star-fill text-warning ms-1"></i>
+            </div>
+        </div>
+
+        <div class="progress mb-4 rounded-pill shadow-sm" style="height: 12px;">
+            <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: @progressPercentage%"></div>
+        </div>
+
+        <div class="card border-0 shadow-lg rounded-4 mb-4">
+            <div class="card-body p-4 p-md-5 text-center">
+                <span class="text-muted fw-bold mb-2 d-block text-uppercase" style="letter-spacing: 1px;">Ερώτηση @(currentIndex + 1) από @parsedItems.Count</span>
+
+                <h2 class="fw-bold text-dark mb-4 lh-base" style="font-size: 1.8rem;">
+                    @currentItem.Question
+                </h2>
+
+                <div class="form-group mx-auto mt-5" style="max-width: 500px;">
+                    <input type="text" class="form-control form-control-lg text-center rounded-pill py-3 border-2 border-primary shadow-sm"
+                           placeholder="Γράψε την απάντησή σου εδώ..."
+                           @bind="userAnswer"
+                           @bind:event="oninput"
+                           @onkeyup="HandleKeyUp"
+                           disabled="@showFeedback"
+                           autofocus />
+                </div>
+
+                @if (showFeedback)
+                {
+                    <div class="mt-4 p-3 rounded-4 fade-in @(isCorrect ? "bg-success bg-opacity-10 border border-success" : "bg-danger bg-opacity-10 border border-danger")">
+                        @if (isCorrect)
+                        {
+                            <h4 class="text-success fw-bold mb-0"><i class="bi bi-check-circle-fill me-2"></i>Σωστά! Μπράβο!</h4>
+                        }
+                        else
+                        {
+                            <h5 class="text-danger fw-bold mb-2"><i class="bi bi-x-circle-fill me-2"></i>Δεν πειράζει!</h5>
+                            <p class="mb-0 text-dark">Η σωστή απάντηση είναι: <strong class="text-primary fs-5">@currentItem.Answer</strong></p>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="card-footer bg-white border-0 p-4 pt-0 d-flex justify-content-center">
+                @if (!showFeedback)
+                {
+                    <button class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow-sm"
+                            @onclick="CheckAnswer"
+                            disabled="@string.IsNullOrWhiteSpace(userAnswer)">
+                        <i class="bi bi-check2-circle me-1"></i> Έλεγχος
+                    </button>
+
+                    <button class="btn btn-outline-secondary btn-lg rounded-pill px-4 ms-3"
+                            @onclick="RevealAnswer">
+                        <i class="bi bi-lightbulb"></i> Βοήθεια
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-success btn-lg rounded-pill px-5 fw-bold shadow-sm fade-in"
+                            @onclick="NextQuestion">
+                        Επόμενη <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .fade-in {
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid AssignmentId { get; set; }
+
+    private PlayAssignmentDto? assignment;
+    private List<AiParsedItem> parsedItems = new();
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    // Game State
+    private int currentIndex = 0;
+    private string userAnswer = "";
+    private bool showFeedback = false;
+    private bool isCorrect = false;
+    private int score = 0;
+    private bool isCompleted = false;
+
+    // ΠΡΟΣΘΗΚΗ: Χρονόμετρο (αόρατο για τον μαθητή για να μην του προκαλεί άγχος)
+    private System.Diagnostics.Stopwatch timer = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAssignment();
+    }
+
+    private async Task LoadAssignment()
+    {
+        try
+        {
+            isLoading = true;
+            assignment = await Http.GetFromJsonAsync<PlayAssignmentDto>($"api/studentdashboard/play/{AssignmentId}");
+
+            if (assignment != null && !string.IsNullOrEmpty(assignment.AIContentJson))
+            {
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                parsedItems = JsonSerializer.Deserialize<List<AiParsedItem>>(assignment.AIContentJson, options) ?? new();
+
+                // ΠΡΟΣΘΗΚΗ: Ξεκινάμε το χρονόμετρο με το που φορτώσει η άσκηση!
+                timer.Start();
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Αποτυχία φόρτωσης της άσκησης. Ίσως δεν έχεις πρόσβαση σε αυτήν.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CheckAnswer()
+    {
+        if (string.IsNullOrWhiteSpace(userAnswer)) return;
+
+        var currentItem = parsedItems[currentIndex];
+        isCorrect = userAnswer.Trim().Equals(currentItem.Answer.Trim(), StringComparison.OrdinalIgnoreCase);
+
+        if (isCorrect) score++;
+
+        showFeedback = true;
+    }
+
+    private void RevealAnswer()
+    {
+        isCorrect = false;
+        showFeedback = true;
+    }
+
+    // ΠΡΟΣΟΧΗ: Έγινε async Task
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !showFeedback && !string.IsNullOrWhiteSpace(userAnswer))
+        {
+            CheckAnswer();
+        }
+        else if (e.Key == "Enter" && showFeedback)
+        {
+            await NextQuestion();
+        }
+    }
+
+    // ΠΡΟΣΟΧΗ: Έγινε async Task
+    private async Task NextQuestion()
+    {
+        showFeedback = false;
+        userAnswer = "";
+
+        if (currentIndex < parsedItems.Count - 1)
+        {
+            currentIndex++;
+        }
+        else
+        {
+            // Το παιχνίδι τελείωσε! Σταματάμε το χρονόμετρο.
+            timer.Stop();
+            isCompleted = true;
+
+            // Στέλνουμε το σκορ αθόρυβα
+            await SubmitScoreAsync();
+        }
+    }
+
+    // ΠΡΟΣΘΗΚΗ: Η μέθοδος που στέλνει τα δεδομένα στο API
+    private async Task SubmitScoreAsync()
+    {
+        try
+        {
+            var dto = new SubmitExerciseResultDto
+            {
+                AssignmentId = this.AssignmentId,
+                Score = this.score,
+                TotalQuestions = parsedItems.Count,
+                TimeSpentSeconds = (int)timer.Elapsed.TotalSeconds
+            };
+
+            await Http.PostAsJsonAsync("api/studentdashboard/submit-result", dto);
+        }
+        catch (Exception)
+        {
+            // Ακόμα και αν αποτύχει (π.χ. έπεσε το internet για 1 δευτερόλεπτο),
+            // δεν βγάζουμε error στον μαθητή για να μην του χαλάσουμε τη χαρά της ολοκλήρωσης.
+            Console.WriteLine("Αποτυχία αποθήκευσης σκορ στο παρασκήνιο.");
+        }
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo("/student-dashboard");
+    }
+
+    private class AiParsedItem
+    {
+        public string Question { get; set; } = string.Empty;
+        public string Answer { get; set; } = string.Empty;
+    }
+}

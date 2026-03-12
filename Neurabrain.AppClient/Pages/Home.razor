@@ -1,8 +1,47 @@
 ﻿@page "/"
-@attribute [Authorize]
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dyskover App</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="d-flex flex-column justify-content-center align-items-center vh-100 bg-light">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+    <h5 class="mt-3 text-muted">Κατεύθυνση στον χώρο σας...</h5>
+</div>
 
-Welcome to your new app.
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        // Ελέγχουμε αν ο χρήστης είναι συνδεδεμένος
+        if (user.Identity is not null && user.Identity.IsAuthenticated)
+        {
+            // Τροχονόμος ρόλων!
+            if (user.IsInRole("Student"))
+            {
+                NavManager.NavigateTo("/student-dashboard");
+            }
+            else if (user.IsInRole("Teacher"))
+            {
+                NavManager.NavigateTo("/workspace"); // Ή /my-classes
+            }
+            else if (user.IsInRole("Admin") || user.IsInRole("SuperAdmin"))
+            {
+                NavManager.NavigateTo("/admin/users");
+            }
+            else
+            {
+                // Fallback αν κάτι πάει λάθος
+                NavManager.NavigateTo("/login");
+            }
+        }
+        else
+        {
+            // Αν δεν είναι συνδεδεμένος, τον πετάμε στη σελίδα Login
+            NavManager.NavigateTo("/login");
+        }
+    }
+}
